@@ -45,12 +45,14 @@ export default function HomePage() {
   const [hasActiveSurvey, setHasActiveSurvey] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [hasSubmittedBefore, setHasSubmittedBefore] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const fetchSurvey = async () => {
       if (typeof window !== 'undefined' && localStorage.getItem('youthpulse_submitted')) {
-        setIsCompleted(true);
+        setHasSubmittedBefore(true);
         setLoading(false);
         return;
       }
@@ -84,10 +86,17 @@ export default function HomePage() {
       setQuestions((questionData ?? []) as Question[]);
       setCurrentIndex(0);
       setLoading(false);
+
+      if (!questionData || questionData.length === 0) {
+        console.error('Active survey found but no questions loaded.', {
+          survey: surveyData,
+          questionData,
+        });
+      }
     };
 
     void fetchSurvey();
-  }, []);
+  }, [reloadKey]);
 
   const totalBlocks = questions.length;
   const currentBlock = questions[currentIndex] ?? null;
@@ -173,14 +182,10 @@ export default function HomePage() {
       const finalAnswers = answersToSubmit ?? answers;
 
       const answerRows = Object.entries(finalAnswers).map(([questionId, value]) => {
-        const question = questions.find((item) => item.id === questionId);
-        const shouldUseJson = question?.type === 'checkbox' || question?.type === 'scale';
-
         return {
           response_id: responseId,
           question_id: questionId,
-          answer_text: shouldUseJson ? null : String(value),
-          answer_json: shouldUseJson ? value : null,
+          answer_json: Array.isArray(value) || typeof value === 'number' ? value : String(value),
         };
       });
 
@@ -222,45 +227,78 @@ export default function HomePage() {
     console.log('Running automated submission test...');
 
     const generatedAnswers: Answers = {};
+    const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const pickOne = <T,>(items: T[]) => items[randomInt(0, items.length - 1)];
+    const shuffle = <T,>(items: T[]) => {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
+    const textResponses = ['Engineering', 'Commerce', 'Still exploring options', 'Trying to figure things out'];
+    const textareaResponses = [
+      'I often feel stressed about my future and career direction.',
+      'Sometimes I feel overwhelmed by expectations from family.',
+      'Social media makes me compare myself too much.',
+      'I feel motivated but unsure about what path to take.',
+      'I struggle with consistency and discipline.',
+      'I want mentorship but don’t know where to find it.',
+    ];
 
     for (const question of questions) {
       if (question.type === 'section_title' || question.type === 'section_intro') {
         continue;
       }
 
-      if (question.type === 'text' || question.type === 'textarea') {
-        generatedAnswers[question.id] = 'Test answer';
+      if (question.type === 'text') {
+        generatedAnswers[question.id] = pickOne(textResponses);
+        continue;
+      }
+
+      if (question.type === 'textarea') {
+        generatedAnswers[question.id] = pickOne(textareaResponses);
         continue;
       }
 
       if (question.type === 'number') {
-        generatedAnswers[question.id] = 1;
+        const lowerQuestionText = question.question_text.toLowerCase();
+        generatedAnswers[question.id] = lowerQuestionText.includes('age') ? randomInt(17, 25) : randomInt(1, 10);
         continue;
       }
 
       if (question.type === 'radio') {
-        generatedAnswers[question.id] = Array.isArray(question.options) && question.options.length > 0 ? question.options[0] : '';
+        generatedAnswers[question.id] =
+          Array.isArray(question.options) && question.options.length > 0 ? pickOne(question.options) : '';
         continue;
       }
 
       if (question.type === 'checkbox') {
-        generatedAnswers[question.id] =
-          Array.isArray(question.options) && question.options.length > 0 ? [question.options[0]] : [];
+        if (Array.isArray(question.options) && question.options.length > 0) {
+          const shuffled = shuffle(question.options);
+          const maxCount = Math.min(3, shuffled.length);
+          const pickCount = randomInt(1, maxCount);
+          generatedAnswers[question.id] = shuffled.slice(0, pickCount);
+        } else {
+          generatedAnswers[question.id] = [];
+        }
         continue;
       }
 
       if (question.type === 'scale') {
-        generatedAnswers[question.id] = 3;
+        generatedAnswers[question.id] = randomInt(1, 5);
         continue;
       }
 
       if (question.type === 'yes_no') {
-        generatedAnswers[question.id] = 'Yes';
+        generatedAnswers[question.id] = Math.random() > 0.5 ? 'Yes' : 'No';
       }
     }
 
     setAnswers(generatedAnswers);
-    console.log('Generated answers:', generatedAnswers);
+    console.log('Generated test answers:', generatedAnswers);
 
     const submissionResult = await handleSubmit(generatedAnswers);
 
@@ -277,6 +315,19 @@ export default function HomePage() {
       .eq('response_id', submissionResult.responseId);
 
     console.log('Answers count for response:', count ?? 0);
+  };
+
+  const handleSubmitAgain = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('youthpulse_submitted');
+    }
+
+    setHasSubmittedBefore(false);
+    setIsCompleted(false);
+    setCurrentIndex(0);
+    setAnswers({});
+    setSubmissionError(null);
+    setReloadKey((prev) => prev + 1);
   };
 
   const inputClassName =
@@ -424,7 +475,24 @@ export default function HomePage() {
   if (totalBlocks === 0) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#f6f1e9] to-[#f2f3f5] px-6">
-        <p className="text-center text-xl text-neutral-700">No survey blocks found.</p>
+        <p className="text-center text-xl text-neutral-700">Active survey found but no questions loaded.</p>
+      </main>
+    );
+  }
+
+  if (hasSubmittedBefore) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#f6f1e9] to-[#f2f3f5] px-6">
+        <div className="space-y-4 text-center">
+          <p className="text-xl text-neutral-700">You have already submitted this survey.</p>
+          <button
+            type="button"
+            onClick={handleSubmitAgain}
+            className="rounded-lg bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            Submit Again
+          </button>
+        </div>
       </main>
     );
   }

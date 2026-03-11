@@ -1,36 +1,127 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# YouthPulse
+
+YouthPulse is a full-stack survey platform built with Next.js and Supabase. It includes a public survey experience for respondents and an admin panel for creating, managing, and analyzing surveys.
+
+## Project Overview
+
+The platform is designed to:
+
+- Run one active survey at a time for end users
+- Collect structured and free-text responses
+- Help admins create and manage survey forms quickly
+- Provide visual analytics and export tools for reporting
+
+## Features
+
+- Dynamic multi-step public survey flow
+- Multiple question/block types:
+  - `section_title`, `section_intro`
+  - `text`, `textarea`, `number`
+  - `radio`, `checkbox`, `yes_no`, `scale`
+- Progress tracking and animated step transitions
+- Response submission lock with localStorage and "Submit Again" reset option
+- Admin authentication with Supabase Auth
+- Role-aware admin access (`super_admin`, `editor`, `viewer`)
+- Survey lifecycle actions: create, activate, close, clone
+- Question builder with add, edit, delete, reorder controls
+- Analytics dashboard with charts (ECharts)
+- CSV and Excel export for collected responses
+
+## Functions and Modules
+
+### Public Survey Module
+- Loads the currently active survey from Supabase
+- Renders block-by-block question flow
+- Validates and stores answers in `responses` and `answers` tables
+- Supports automated test submission in development mode
+
+### Admin Authentication Module
+- Email/password sign-in with Supabase Auth
+- Middleware-based protection for `/admin/*` routes
+- Profile-role checks before allowing dashboard access
+
+### Survey Management Module
+- Create new survey metadata (title, description, year, region, slug)
+- List all surveys with status and action controls
+- Activate one survey (and close others), close surveys, clone surveys
+
+### Question Builder Module
+- Manage survey questions/blocks per survey
+- Configure question text, helper text, type, required state, and options
+- Reorder questions using `order_index`
+
+### Analytics and Export Module
+- Aggregate answers per question from active survey responses
+- Render bar-chart insights and summary metrics
+- Export response datasets to CSV and Excel (`xlsx`)
+
+## Tech Stack
+
+- Next.js (App Router)
+- React + TypeScript
+- Tailwind CSS
+- Supabase (`@supabase/supabase-js`, `@supabase/ssr`)
+- ECharts (`echarts`, `echarts-for-react`)
+- React Hook Form
+- Framer Motion
+- XLSX
+
+## Project Structure
+
+```text
+src/
+  app/
+    page.tsx                      # Public survey
+    admin/
+      login/page.tsx              # Admin login
+      page.tsx                    # Admin dashboard entry
+      surveys/
+        page.tsx                  # Survey list + actions
+        create/page.tsx           # Create survey
+        [id]/page.tsx             # Question builder
+      analytics/page.tsx          # Analytics + exports
+  lib/
+    supabase/
+      client.ts                   # Browser Supabase client
+      server.ts                   # Server Supabase client helper
+  middleware.ts                   # Admin route protection
+```
+
+## Environment Variables
+
+Create `.env.local` with:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run locally:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Build for production:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment
 
-## Learn More
+- Deploy via Vercel from the `main` branch
+- Ensure required environment variables are set in Vercel project settings
 
-To learn more about Next.js, take a look at the following resources:
+## 👨‍💻 Developer Credits
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This platform is developed and maintained by: **Stevens Dumpala**  
+[stevensdumpala.com](https://stevensdumpala.com)

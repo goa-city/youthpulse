@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 import { supabaseClient } from '@/lib/supabase/client';
 
@@ -13,7 +13,6 @@ type LoginFormValues = {
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const {
@@ -50,7 +49,8 @@ export default function AdminLoginPage() {
       return;
     }
 
-    const nextPath = searchParams.get('next');
+    const nextPath =
+      typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') : null;
     const destination = nextPath && nextPath.startsWith('/admin') ? nextPath : '/admin';
 
     router.replace(destination);

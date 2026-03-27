@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 
 import { ADMIN_ROLES } from '@/lib/admin/constants';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
   const { pathname, search } = request.nextUrl;
   const isLoginPage = pathname === '/admin/login';
@@ -39,11 +39,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
 
   const hasAdminAccess = Boolean(
     profile?.role && ADMIN_ROLES.includes(profile.role as (typeof ADMIN_ROLES)[number])

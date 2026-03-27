@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 
 import { supabaseClient } from '@/lib/supabase/client';
 
@@ -70,9 +70,9 @@ export default function SurveyQuestionBuilderPage() {
   const [editQuestionId, setEditQuestionId] = useState<string | null>(null);
 
   const {
+    control: addControl,
     register: registerAdd,
     handleSubmit: handleSubmitAdd,
-    watch: watchAdd,
     reset: resetAdd,
     formState: { isSubmitting: isAdding },
   } = useForm<BlockFormValues>({
@@ -86,9 +86,9 @@ export default function SurveyQuestionBuilderPage() {
   });
 
   const {
+    control: editControl,
     register: registerEdit,
     handleSubmit: handleSubmitEdit,
-    watch: watchEdit,
     reset: resetEdit,
     setValue: setEditValue,
     formState: { isSubmitting: isEditing },
@@ -102,35 +102,39 @@ export default function SurveyQuestionBuilderPage() {
     },
   });
 
-  const selectedAddType = watchAdd('type');
-  const selectedEditType = watchEdit('type');
+  const selectedAddType = useWatch({ control: addControl, name: 'type' });
+  const selectedEditType = useWatch({ control: editControl, name: 'type' });
 
-  const showAddOptionsField = useMemo(
-    () => selectedAddType === 'radio' || selectedAddType === 'checkbox',
-    [selectedAddType]
-  );
-  const showEditOptionsField = useMemo(
-    () => selectedEditType === 'radio' || selectedEditType === 'checkbox',
-    [selectedEditType]
-  );
+  const showAddOptionsField = selectedAddType === 'radio' || selectedAddType === 'checkbox';
+  const showEditOptionsField = selectedEditType === 'radio' || selectedEditType === 'checkbox';
 
-  const fetchData = async () => {
+  const getSurveyData = useCallback(async () => {
     if (!surveyId) {
-      return;
+      return null;
     }
 
+    return Promise.all([
+      supabaseClient.from('surveys').select('id, title, year, region').eq('id', surveyId).single(),
+      supabaseClient
+        .from('questions')
+        .select('id, question_code, question_text, helper_text, type, required, options, order_index')
+        .eq('survey_id', surveyId)
+        .order('order_index', { ascending: true }),
+    ]);
+  }, [surveyId]);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
 
-    const [{ data: surveyData, error: surveyError }, { data: questionData, error: questionError }] =
-      await Promise.all([
-        supabaseClient.from('surveys').select('id, title, year, region').eq('id', surveyId).single(),
-        supabaseClient
-          .from('questions')
-          .select('id, question_code, question_text, helper_text, type, required, options, order_index')
-          .eq('survey_id', surveyId)
-          .order('order_index', { ascending: true }),
-      ]);
+    const result = await getSurveyData();
+
+    if (!result) {
+      setLoading(false);
+      return;
+    }
+
+    const [{ data: surveyData, error: surveyError }, { data: questionData, error: questionError }] = result;
 
     if (surveyError) {
       setErrorMessage(surveyError.message);
@@ -151,11 +155,42 @@ export default function SurveyQuestionBuilderPage() {
     setSurvey((surveyData ?? null) as Survey | null);
     setQuestions((questionData ?? []) as Question[]);
     setLoading(false);
-  };
+  }, [getSurveyData]);
 
   useEffect(() => {
-    void fetchData();
-  }, [surveyId]);
+    const loadInitialData = async () => {
+      const result = await getSurveyData();
+
+      if (!result) {
+        setLoading(false);
+        return;
+      }
+
+      const [{ data: surveyData, error: surveyError }, { data: questionData, error: questionError }] = result;
+
+      if (surveyError) {
+        setErrorMessage(surveyError.message);
+        setSurvey(null);
+        setQuestions([]);
+        setLoading(false);
+        return;
+      }
+
+      if (questionError) {
+        setErrorMessage(questionError.message);
+        setSurvey((surveyData ?? null) as Survey | null);
+        setQuestions([]);
+        setLoading(false);
+        return;
+      }
+
+      setSurvey((surveyData ?? null) as Survey | null);
+      setQuestions((questionData ?? []) as Question[]);
+      setLoading(false);
+    };
+
+    void loadInitialData();
+  }, [getSurveyData]);
 
   const onAddSubmit = async (values: BlockFormValues) => {
     if (!surveyId) {
@@ -167,6 +202,7 @@ export default function SurveyQuestionBuilderPage() {
     const maxOrderIndex = questions.reduce((max, question) => {
       return question.order_index > max ? question.order_index : max;
     }, 0);
+    const nextOrderIndex = maxOrderIndex + 1;
 
     const parsedOptions = showAddOptionsField
       ? values.options
@@ -177,13 +213,13 @@ export default function SurveyQuestionBuilderPage() {
 
     const { error } = await supabaseClient.from('questions').insert({
       survey_id: surveyId,
-      question_code: `q_${Date.now()}`,
+      question_code: `q_${nextOrderIndex}`,
       question_text: values.question_text,
       helper_text: values.helper_text || null,
       type: values.type,
       required: values.required,
       options: showAddOptionsField ? parsedOptions : null,
-      order_index: maxOrderIndex + 1,
+      order_index: nextOrderIndex,
     });
 
     if (error) {

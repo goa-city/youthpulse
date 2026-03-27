@@ -34,14 +34,18 @@ export default function AdminSurveysPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  const getSurveys = async () => {
+    return supabaseClient
+      .from('surveys')
+      .select('id, title, description, year, region, status')
+      .order('year', { ascending: false });
+  };
+
   const fetchSurveys = async () => {
     setLoading(true);
     setErrorMessage(null);
 
-    const { data, error } = await supabaseClient
-      .from('surveys')
-      .select('id, title, description, year, region, status')
-      .order('year', { ascending: false });
+    const { data, error } = await getSurveys();
 
     if (error) {
       setErrorMessage(error.message);
@@ -55,7 +59,21 @@ export default function AdminSurveysPage() {
   };
 
   useEffect(() => {
-    void fetchSurveys();
+    const loadInitialSurveys = async () => {
+      const { data, error } = await getSurveys();
+
+      if (error) {
+        setErrorMessage(error.message);
+        setSurveys([]);
+        setLoading(false);
+        return;
+      }
+
+      setSurveys((data ?? []) as Survey[]);
+      setLoading(false);
+    };
+
+    void loadInitialSurveys();
   }, []);
 
   const handleActivate = async (surveyId: string) => {

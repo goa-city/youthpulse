@@ -10,6 +10,7 @@ import { supabaseClient } from '@/lib/supabase/client';
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/surveys', label: 'Surveys' },
+  { href: '/admin/reports', label: 'Reports' },
   { href: '/admin/analytics', label: 'Analytics' },
 ];
 
@@ -30,15 +31,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900">
+    <div className="min-h-screen bg-[linear-gradient(180deg,_#f5f5f4_0%,_#e7e5e4_100%)] text-stone-900">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col lg:flex-row">
-        <aside className="border-b border-stone-200 bg-white lg:min-h-screen lg:w-72 lg:border-r lg:border-b-0">
+        <aside className="border-b border-stone-200 bg-white/90 backdrop-blur lg:min-h-screen lg:w-72 lg:border-r lg:border-b-0">
           <div className="flex h-full flex-col px-6 py-8">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-stone-500">YouthPulse</p>
               <h1 className="mt-3 text-2xl font-semibold text-stone-950">Admin Area</h1>
               <p className="mt-2 text-sm text-stone-600">
-                Manage surveys, review analytics, and access the existing admin tools.
+                Manage surveys, review reports, and analyze submissions from one place.
               </p>
             </div>
 
@@ -51,9 +52,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
+                    className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
                       isActive
-                        ? 'bg-stone-900 text-white'
+                        ? 'bg-stone-900 text-white shadow-lg shadow-stone-300/40'
                         : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'
                     }`}
                   >
@@ -67,7 +68,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => void handleSignOut()}
               disabled={isSigningOut}
-              className="mt-6 rounded-xl border border-stone-300 px-4 py-3 text-left text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-6 rounded-2xl border border-stone-300 px-4 py-3 text-left text-sm font-medium text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSigningOut ? 'Signing out...' : 'Sign out'}
             </button>
